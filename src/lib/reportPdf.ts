@@ -67,6 +67,12 @@ const shortRecommendation = (recommendation: RecommendationValue) => {
   return recommendation
 }
 
+const shortCondition = (condition: InspectionCondition) => {
+  if (condition === 'ATTENTION REQUIRED') return 'ATTENTION'
+  if (condition === 'NOT CHECKED') return 'NOT CHECKED'
+  return condition
+}
+
 const drawConditionBadge = (doc: jsPDF, condition: InspectionCondition, x: number, y: number, width: number, height = 15) => {
   const style = conditionStyle(condition)
   setFill(doc, style.fill)
@@ -191,32 +197,47 @@ const drawResultsTable = (doc: jsPDF, report: InspectionReport, y: number) => {
 }
 
 const drawOthers = (doc: jsPDF, items: OtherItemEntry[], y: number) => {
-  const height = 32
+  const height = 67
   roundedRect(doc, MARGIN, y, CONTENT_WIDTH, height, { r: 255, g: 255, b: 255 }, LINE, 4)
-  drawPanelTitle(doc, 'OTHERS', MARGIN + 12, y + 13)
+  drawPanelTitle(doc, 'OTHERS', MARGIN + 12, y + 15)
 
   if (items.length === 0) {
     setText(doc, MUTED)
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(7.2)
-    doc.text('No additional items selected', MARGIN + 73, y + 13)
+    doc.text('No additional items selected', MARGIN + 73, y + 15)
     return y + height
   }
 
-  const visibleItems = items.slice(0, 5)
-  let x = MARGIN + 73
+  const visibleItems = items.slice(0, 12)
+  const itemStartX = MARGIN + 73
+  const itemWidth = (CONTENT_WIDTH - 73 - 12) / 4
+  const itemHeight = 15
+  const itemGap = 4
+
   visibleItems.forEach((item, index) => {
-    const text = `${truncate(item.item, 18)} — ${item.condition}`
-    setText(doc, conditionStyle(item.condition).text)
+    const column = index % 4
+    const row = Math.floor(index / 4)
+    const x = itemStartX + column * (itemWidth + itemGap)
+    const itemY = y + 24 + row * (itemHeight + 4)
+    const style = conditionStyle(item.condition)
+
+    setFill(doc, style.fill)
+    setDraw(doc, style.border)
+    doc.setLineWidth(0.45)
+    doc.roundedRect(x, itemY, itemWidth, itemHeight, 2.5, 2.5, 'FD')
+    setText(doc, style.text)
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(6.6)
-    doc.text(text, x, y + 13)
-    x += Math.min(92, Math.max(86, doc.getTextWidth(text) + 16))
-    if (index < visibleItems.length - 1 && x < PAGE_WIDTH - 72) {
-      setText(doc, LINE)
-      doc.text('|', x - 7, y + 13)
-    }
+    doc.setFontSize(5.8)
+    doc.text(`${truncate(item.item, 13)} - ${shortCondition(item.condition)}`, x + itemWidth / 2, itemY + 10, { align: 'center' })
   })
+
+  if (items.length > visibleItems.length) {
+    setText(doc, MUTED)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(6.1)
+    doc.text(`+${items.length - visibleItems.length} more selected`, PAGE_WIDTH - MARGIN - 8, y + height - 7, { align: 'right' })
+  }
 
   return y + height
 }
