@@ -196,26 +196,17 @@ const drawResultsTable = (doc: jsPDF, report: InspectionReport, y: number) => {
   return y + tableHeight
 }
 
-const drawOthers = (doc: jsPDF, items: OtherItemEntry[], y: number) => {
+const drawOthersGrid = (doc: jsPDF, items: OtherItemEntry[], y: number, title: string) => {
   const height = 67
   roundedRect(doc, MARGIN, y, CONTENT_WIDTH, height, { r: 255, g: 255, b: 255 }, LINE, 4)
-  drawPanelTitle(doc, 'OTHERS', MARGIN + 12, y + 15)
+  drawPanelTitle(doc, title, MARGIN + 12, y + 15)
 
-  if (items.length === 0) {
-    setText(doc, MUTED)
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7.2)
-    doc.text('No additional items selected', MARGIN + 73, y + 15)
-    return y + height
-  }
-
-  const visibleItems = items.slice(0, 12)
   const itemStartX = MARGIN + 73
   const itemWidth = (CONTENT_WIDTH - 73 - 12) / 4
   const itemHeight = 15
   const itemGap = 4
 
-  visibleItems.forEach((item, index) => {
+  items.forEach((item, index) => {
     const column = index % 4
     const row = Math.floor(index / 4)
     const x = itemStartX + column * (itemWidth + itemGap)
@@ -232,14 +223,72 @@ const drawOthers = (doc: jsPDF, items: OtherItemEntry[], y: number) => {
     doc.text(`${truncate(item.item, 13)} - ${shortCondition(item.condition)}`, x + itemWidth / 2, itemY + 10, { align: 'center' })
   })
 
-  if (items.length > visibleItems.length) {
-    setText(doc, MUTED)
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(6.1)
-    doc.text(`+${items.length - visibleItems.length} more selected`, PAGE_WIDTH - MARGIN - 8, y + height - 7, { align: 'right' })
+  return y + height
+}
+
+const drawFooter = (doc: jsPDF, report?: InspectionReport) => {
+  const footerY = PAGE_HEIGHT - 34
+  setDraw(doc, RED)
+  doc.setLineWidth(1.2)
+  doc.line(MARGIN, footerY, PAGE_WIDTH - MARGIN, footerY)
+  setText(doc, INK)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(7.5)
+  doc.text('DEUTSCHE AUTO DEN', MARGIN, footerY + 17)
+  setText(doc, MUTED)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(6.8)
+  doc.text('DAD MEETS YOUR CAR NEEDS', MARGIN, footerY + 28)
+  if (report) {
+    doc.text(`Report ID: ${report.reportId}`, PAGE_WIDTH - MARGIN, footerY + 17, { align: 'right' })
+    doc.text(`Inspection Date: ${formatDate(report.inspection.date)}`, PAGE_WIDTH - MARGIN, footerY + 28, { align: 'right' })
+  } else {
+    doc.text(`Page ${doc.getNumberOfPages()}`, PAGE_WIDTH - MARGIN, footerY + 28, { align: 'right' })
+  }
+}
+
+const drawContinuationHeader = (doc: jsPDF) => {
+  setFill(doc, PAPER)
+  doc.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, 'F')
+  setFill(doc, { r: 28, g: 29, b: 30 })
+  doc.rect(0, 0, PAGE_WIDTH, 42, 'F')
+  setDraw(doc, RED)
+  doc.setLineWidth(1.5)
+  doc.line(MARGIN, 42, PAGE_WIDTH - MARGIN, 42)
+  setText(doc, { r: 255, g: 255, b: 255 })
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(10)
+  doc.text('DEUTSCHE AUTO DEN', MARGIN, 25)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(7)
+  doc.text('VEHICLE INSPECTION REPORT - CONTINUED', PAGE_WIDTH - MARGIN, 25, { align: 'right' })
+}
+
+const drawOthers = (doc: jsPDF, items: OtherItemEntry[], y: number) => {
+  if (items.length === 0) {
+    return drawOthersGrid(doc, [], y, 'OTHERS')
   }
 
-  return y + height
+  const pageSize = 12
+  let currentY = y
+  let pageItems = items.slice(0, pageSize)
+  let remaining = items.slice(pageSize)
+  let continuation = false
+
+  while (pageItems.length > 0) {
+    currentY = drawOthersGrid(doc, pageItems, currentY, continuation ? 'OTHERS - CONTINUED' : 'OTHERS')
+    if (remaining.length === 0) break
+
+    drawFooter(doc)
+    doc.addPage()
+    drawContinuationHeader(doc)
+    currentY = 62
+    pageItems = remaining.slice(0, pageSize)
+    remaining = remaining.slice(pageSize)
+    continuation = true
+  }
+
+  return currentY
 }
 
 const drawAssessment = (doc: jsPDF, report: InspectionReport, y: number) => {
@@ -347,20 +396,7 @@ export const generatePdfDocument = async (report: InspectionReport) => {
   const othersBottom = drawOthers(doc, report.inspection.sections.others, resultsBottom + 11)
   drawAssessment(doc, report, othersBottom + 11)
 
-  const footerY = 790
-  setDraw(doc, RED)
-  doc.setLineWidth(1.2)
-  doc.line(MARGIN, footerY, PAGE_WIDTH - MARGIN, footerY)
-  setText(doc, INK)
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(7.5)
-  doc.text('DEUTSCHE AUTO DEN', MARGIN, footerY + 17)
-  setText(doc, MUTED)
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(6.8)
-  doc.text('DAD MEETS YOUR CAR NEEDS', MARGIN, footerY + 28)
-  doc.text(`Report ID: ${report.reportId}`, PAGE_WIDTH - MARGIN, footerY + 17, { align: 'right' })
-  doc.text(`Inspection Date: ${formatDate(report.inspection.date)}`, PAGE_WIDTH - MARGIN, footerY + 28, { align: 'right' })
+  drawFooter(doc, report)
 
   doc.save(`${report.reportId.toLowerCase().replace(/[^a-z0-9-]/g, '-')}.pdf`)
 }
