@@ -72,6 +72,7 @@
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  white-space: nowrap;
 }
 
 .page-header-row {
@@ -202,6 +203,14 @@ select {
   padding: 11px 12px;
   color: #f4f2ee;
   font: inherit;
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
 }
 
 input:focus,
@@ -443,6 +452,14 @@ textarea {
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+.detail-list strong,
+.quick-list strong,
+.report-meta-row strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
 .detail-list span,
 .quick-list span,
 .report-meta-row span {
@@ -535,6 +552,7 @@ textarea {
 
 .report-card {
   padding: 16px 16px 14px;
+  min-width: 0;
 }
 
 .report-card-head {
@@ -553,6 +571,7 @@ textarea {
 .report-customer {
   margin-top: 4px;
   color: #d7d0c4;
+  overflow-wrap: anywhere;
 }
 
 .report-actions {
@@ -577,6 +596,8 @@ textarea {
   border-radius: 16px;
   padding: 18px 18px 12px;
   border: 1px solid rgba(17, 17, 17, 0.08);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .preview-header-row {
@@ -689,12 +710,15 @@ textarea {
   .four-col {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .summary-panel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 768px) {
   .page-shell {
-    padding-left: 14px;
-    padding-right: 14px;
+    padding: 16px 12px 28px;
   }
 
   .topbar,
@@ -703,33 +727,178 @@ textarea {
     align-items: flex-start;
   }
 
+  .topbar {
+    gap: 14px;
+  }
+
+  .brand-block {
+    max-width: 100%;
+  }
+
+  .brand-text {
+    font-size: 1.05rem;
+  }
+
+  .main-nav {
+    width: 100%;
+    gap: 8px;
+  }
+
+  .main-nav a {
+    flex: 1 1 auto;
+    padding: 10px 8px;
+    text-align: center;
+    font-size: 0.82rem;
+  }
+
+  h1 {
+    font-size: clamp(1.8rem, 9vw, 2.45rem);
+    line-height: 1.02;
+  }
+
+  .header-status-box {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .card-form,
+  .preview-panel {
+    padding: 16px 14px 14px;
+    margin-bottom: 16px;
+  }
+
   .two-col,
   .preview-grid-two,
   .stats-grid,
-  .others-list {
+  .others-list,
+  .summary-panel {
     grid-template-columns: 1fr;
   }
 
-  .dashboard-actions,
-  .action-row,
-  .report-actions {
+  .four-col {
+    grid-template-columns: 1fr;
+  }
+
+  .condition-selector {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .condition-button {
+    min-height: 48px;
+    padding: 9px 6px;
+    font-size: 0.72rem;
+  }
+
+  .preview-actions-title {
+    align-items: stretch;
     flex-direction: column;
   }
 
-  .dashboard-btn,
-  .primary-btn,
-  .secondary-btn {
+  .preview-actions-title .primary-btn {
+    width: 100%;
+  }
+
+  .preview-header-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .preview-paper-title {
+    width: 100%;
+    text-align: left;
+    font-size: 0.88rem;
+  }
+
+  .preview-brand {
+    font-size: 0.82rem;
+  }
+
+  .action-row,
+  .report-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .action-row .primary-btn,
+  .action-row .secondary-btn,
+  .report-actions .primary-btn,
+  .report-actions .secondary-btn {
+    width: 100%;
+    min-width: 0;
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+
+  .dashboard-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-btn {
     width: 100%;
   }
 }
 
 @media (max-width: 414px) {
-  .brand-text {
-    font-size: 1rem;
+  .page-shell {
+    padding-left: 10px;
+    padding-right: 10px;
   }
 
-  .four-col,
-  .condition-selector {
+  .brand-text {
+    font-size: 0.96rem;
+  }
+
+  .brand-tag {
+    font-size: 0.58rem;
+    letter-spacing: 0.08em;
+  }
+
+  .main-nav a {
+    font-size: 0.73rem;
+  }
+
+  .section-editor {
+    padding: 14px 11px;
+  }
+
+  .section-header-line {
+    align-items: flex-start;
+  }
+
+  .section-header-line h3 {
+    font-size: 0.95rem;
+  }
+
+  .mini-status {
+    font-size: 0.58rem;
+    text-align: right;
+  }
+
+  .report-preview {
+    padding: 14px 11px 10px;
+  }
+
+  .preview-grid-two {
+    gap: 10px;
+  }
+
+  .panel-block {
+    padding: 10px 9px;
+  }
+
+  .action-row,
+  .report-actions {
     grid-template-columns: 1fr;
+  }
+
+  .four-col {
+    grid-template-columns: 1fr;
+  }
+
+  .condition-selector {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
