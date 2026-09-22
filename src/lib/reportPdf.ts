@@ -20,6 +20,14 @@ const truncate = (value: string | undefined, maxLength: number) => {
   return clean.length > maxLength ? `${clean.slice(0, maxLength - 3).trimEnd()}...` : clean
 }
 
+const wrappedText = (doc: jsPDF, value: string | undefined, width: number, maxLines = 2) => {
+  const lines = doc.splitTextToSize(cleanText(value), width) as string[]
+  if (lines.length <= maxLines) return lines
+  const visible = lines.slice(0, maxLines)
+  visible[maxLines - 1] = `${visible[maxLines - 1].replace(/[. ]+$/, '')}...`
+  return visible
+}
+
 const formatDate = (value: string) => {
   if (!value) return '—'
   const date = new Date(`${value}T00:00:00`)
@@ -65,12 +73,6 @@ const shortRecommendation = (recommendation: RecommendationValue) => {
   if (recommendation === 'IMMEDIATE ATTENTION') return 'IMMEDIATE ATT.'
   if (recommendation === 'SERVICE RECOMMENDED') return 'SERVICE RECOMMENDED'
   return recommendation
-}
-
-const shortCondition = (condition: InspectionCondition) => {
-  if (condition === 'ATTENTION REQUIRED') return 'ATTENTION'
-  if (condition === 'NOT CHECKED') return 'NOT CHECKED'
-  return condition
 }
 
 const drawConditionBadge = (doc: jsPDF, condition: InspectionCondition, x: number, y: number, width: number, height = 15) => {
@@ -185,7 +187,7 @@ const drawResultsTable = (doc: jsPDF, report: InspectionReport, y: number) => {
     setText(doc, INK)
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(7.2)
-    doc.text(truncate(section.findings, 40), MARGIN + columns[0].width + columns[1].width + 8, baseline)
+    doc.text(wrappedText(doc, section.findings, columns[2].width - 16, 2), MARGIN + columns[0].width + columns[1].width + 8, rowY + 13)
 
     setText(doc, MUTED)
     doc.setFont('helvetica', 'bold')
@@ -196,31 +198,64 @@ const drawResultsTable = (doc: jsPDF, report: InspectionReport, y: number) => {
   return y + tableHeight
 }
 
-const drawOthersGrid = (doc: jsPDF, items: OtherItemEntry[], y: number, title: string) => {
-  const height = 67
+const drawOthersTable = (doc: jsPDF, items: OtherItemEntry[], y: number, title: string) => {
+  const headerHeight = 22
+  const rowHeight = 42
+  const height = headerHeight + Math.max(items.length, 1) * rowHeight
   roundedRect(doc, MARGIN, y, CONTENT_WIDTH, height, { r: 255, g: 255, b: 255 }, LINE, 4)
-  drawPanelTitle(doc, title, MARGIN + 12, y + 15)
+  setFill(doc, { r: 34, g: 35, b: 36 })
+  doc.roundedRect(MARGIN, y, CONTENT_WIDTH, headerHeight, 4, 4, 'F')
+  doc.rect(MARGIN, y + headerHeight - 4, CONTENT_WIDTH, 4, 'F')
 
-  const itemStartX = MARGIN + 73
-  const itemWidth = (CONTENT_WIDTH - 73 - 12) / 4
-  const itemHeight = 15
-  const itemGap = 4
+  const columns = [
+    { label: 'ITEM', width: 112 },
+    { label: 'CONDITION', width: 112 },
+    { label: 'FINDING', width: 190 },
+    { label: 'RECOMMENDATION', width: CONTENT_WIDTH - 112 - 112 - 190 },
+  ]
+  let columnX = MARGIN
+  columns.forEach((column, index) => {
+    if (index > 0) {
+      setDraw(doc, { r: 93, g: 94, b: 95 })
+      doc.setLineWidth(0.5)
+      doc.line(columnX, y, columnX, y + height)
+    }
+    setText(doc, { r: 255, g: 255, b: 255 })
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(6.4)
+    doc.text(index === 0 ? title : column.label, columnX + 8, y + 14)
+    columnX += column.width
+  })
+
+  if (items.length === 0) {
+    setText(doc, MUTED)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7.2)
+    doc.text('No additional items selected', MARGIN + 8, y + headerHeight + 16)
+    return y + height
+  }
 
   items.forEach((item, index) => {
-    const column = index % 4
-    const row = Math.floor(index / 4)
-    const x = itemStartX + column * (itemWidth + itemGap)
-    const itemY = y + 24 + row * (itemHeight + 4)
-    const style = conditionStyle(item.condition)
+    const rowY = y + headerHeight + index * rowHeight
+    if (index > 0) {
+      setDraw(doc, LINE)
+      doc.setLineWidth(0.55)
+      doc.line(MARGIN, rowY, MARGIN + CONTENT_WIDTH, rowY)
+    }
 
-    setFill(doc, style.fill)
-    setDraw(doc, style.border)
-    doc.setLineWidth(0.45)
-    doc.roundedRect(x, itemY, itemWidth, itemHeight, 2.5, 2.5, 'FD')
-    setText(doc, style.text)
+    setText(doc, INK)
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(5.8)
-    doc.text(`${truncate(item.item, 13)} - ${shortCondition(item.condition)}`, x + itemWidth / 2, itemY + 10, { align: 'center' })
+    doc.setFontSize(7.1)
+    doc.text(wrappedText(doc, item.item, columns[0].width - 16, 2), MARGIN + 8, rowY + 15)
+    drawConditionBadge(doc, item.condition, MARGIN + columns[0].width + 7, rowY + 11, columns[1].width - 14)
+    setText(doc, INK)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7.1)
+    doc.text(wrappedText(doc, item.findings, columns[2].width - 16, 2), MARGIN + columns[0].width + columns[1].width + 8, rowY + 14)
+    setText(doc, MUTED)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(6.5)
+    doc.text(wrappedText(doc, item.recommendation, columns[3].width - 16, 2), MARGIN + columns[0].width + columns[1].width + columns[2].width + 8, rowY + 14)
   })
 
   return y + height
@@ -266,17 +301,17 @@ const drawContinuationHeader = (doc: jsPDF) => {
 
 const drawOthers = (doc: jsPDF, items: OtherItemEntry[], y: number) => {
   if (items.length === 0) {
-    return drawOthersGrid(doc, [], y, 'OTHERS')
+    return drawOthersTable(doc, [], y, 'OTHERS')
   }
 
-  const pageSize = 12
+  const pageSize = 6
   let currentY = y
   let pageItems = items.slice(0, pageSize)
   let remaining = items.slice(pageSize)
   let continuation = false
 
   while (pageItems.length > 0) {
-    currentY = drawOthersGrid(doc, pageItems, currentY, continuation ? 'OTHERS - CONTINUED' : 'OTHERS')
+    currentY = drawOthersTable(doc, pageItems, currentY, continuation ? 'OTHERS - CONTINUED' : 'OTHERS')
     if (remaining.length === 0) break
 
     drawFooter(doc)
@@ -394,7 +429,16 @@ export const generatePdfDocument = async (report: InspectionReport) => {
   const resultsBottom = drawResultsTable(doc, report, 273)
 
   const othersBottom = drawOthers(doc, report.inspection.sections.others, resultsBottom + 11)
-  drawAssessment(doc, report, othersBottom + 11)
+  const assessmentHeight = 91
+  const footerTop = PAGE_HEIGHT - 34
+  let assessmentY = othersBottom + 11
+  if (assessmentY + assessmentHeight > footerTop - 12) {
+    drawFooter(doc)
+    doc.addPage()
+    drawContinuationHeader(doc)
+    assessmentY = 62
+  }
+  drawAssessment(doc, report, assessmentY)
 
   drawFooter(doc, report)
 
