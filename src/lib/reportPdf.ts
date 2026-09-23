@@ -28,6 +28,30 @@ const wrappedText = (doc: jsPDF, value: string | undefined, width: number, maxLi
   return visible
 }
 
+const fitWrappedBlock = (
+  doc: jsPDF,
+  value: string | undefined,
+  width: number,
+  maxLines: number,
+  minFontSize: number,
+  maxFontSize: number,
+) => {
+  const source = cleanText(value)
+  let fontSize = maxFontSize
+  let lines = doc.splitTextToSize(source, width) as string[]
+
+  while (lines.length > maxLines && fontSize > minFontSize) {
+    fontSize -= 0.4
+    doc.setFontSize(fontSize)
+    lines = doc.splitTextToSize(source, width) as string[]
+  }
+
+  return {
+    lines: lines.slice(0, maxLines),
+    fontSize,
+  }
+}
+
 const formatDate = (value: string) => {
   if (!value) return '—'
   const date = new Date(`${value}T00:00:00`)
@@ -327,7 +351,7 @@ const drawOthers = (doc: jsPDF, items: OtherItemEntry[], y: number) => {
 }
 
 const drawAssessment = (doc: jsPDF, report: InspectionReport, y: number) => {
-  const height = 91
+  const height = 118
   roundedRect(doc, MARGIN, y, CONTENT_WIDTH, height, { r: 255, g: 255, b: 255 }, LINE, 4)
   setFill(doc, { r: 34, g: 35, b: 36 })
   doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 23, 4, 4, 'F')
@@ -345,21 +369,21 @@ const drawAssessment = (doc: jsPDF, report: InspectionReport, y: number) => {
 
   setText(doc, RED)
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(6.8)
+  doc.setFontSize(7.4)
   doc.text('TECHNICIAN SUMMARY', MARGIN + 222, y + 39)
   setText(doc, INK)
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(7.2)
-  doc.text(truncate(report.inspection.summary, 72), MARGIN + 222, y + 51)
+  const summaryBlock = fitWrappedBlock(doc, report.inspection.summary, 170, 3, 6.8, 8.4)
+  doc.text(summaryBlock.lines, MARGIN + 222, y + 52)
 
   setText(doc, RED)
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(6.8)
+  doc.setFontSize(7.4)
   doc.text('KEY RECOMMENDATIONS', MARGIN + 13, y + 70)
   setText(doc, INK)
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(7.2)
-  doc.text(truncate(report.inspection.keyRecommendations, 105), MARGIN + 125, y + 70)
+  const recommendationBlock = fitWrappedBlock(doc, report.inspection.keyRecommendations, 210, 3, 6.8, 8.6)
+  doc.text(recommendationBlock.lines, MARGIN + 125, y + 70)
 
   return y + height
 }
