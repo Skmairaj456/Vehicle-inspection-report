@@ -1,7 +1,7 @@
 import { BrowserRouter, Link, Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom'
 import { type Dispatch, type SetStateAction, useEffect, useMemo, useState } from 'react'
 import { generatePdfDocument } from './lib/reportPdf'
-import { loadReports, upsertReport } from './lib/reportRepository'
+import { loadReportById, loadReports, upsertReport } from './lib/reportRepository'
 import type {
   InspectionCondition,
   InspectionReport,
@@ -57,7 +57,11 @@ const saveReport = async (report: InspectionReport, reports: InspectionReport[])
   if (index >= 0) updated[index] = nextReport
   else updated.unshift(nextReport)
 
-  await upsertReport(nextReport)
+  const result = await upsertReport(nextReport)
+  if (result.conflicted && result.latestReport) {
+    throw new Error(`This report was updated on another device. The latest version was reloaded.`)
+  }
+
   return nextReport
 }
 
@@ -473,6 +477,23 @@ const InspectionFormPage = ({
       setMessage(`REPORT SAVED\nReport ID: ${nextReport.reportId}`)
     } catch (error) {
       console.error('Failed to save report', error)
+
+      if (error instanceof Error && error.message.includes('updated on another device')) {
+        const latestReport = await loadReportById(report.reportId)
+        if (latestReport) {
+          setReport(latestReport)
+          setReports((current) => {
+            const updated = [...current]
+            const index = updated.findIndex((item) => item.id === latestReport.id)
+            if (index >= 0) updated[index] = latestReport
+            else updated.unshift(latestReport)
+            return updated
+          })
+          setMessage('This report was updated from another device. The latest version has been reloaded.')
+          return
+        }
+      }
+
       setMessage('Could not save the report to Supabase. Check the database table and Row Level Security policies.')
     }
   }
@@ -498,6 +519,23 @@ const InspectionFormPage = ({
       setMessage(`PDF generated for ${nextReport.reportId}`)
     } catch (error) {
       console.error('Failed to save report before PDF generation', error)
+
+      if (error instanceof Error && error.message.includes('updated on another device')) {
+        const latestReport = await loadReportById(report.reportId)
+        if (latestReport) {
+          setReport(latestReport)
+          setReports((current) => {
+            const updated = [...current]
+            const index = updated.findIndex((item) => item.id === latestReport.id)
+            if (index >= 0) updated[index] = latestReport
+            else updated.unshift(latestReport)
+            return updated
+          })
+          setMessage('This report was updated from another device. The latest version has been reloaded before PDF generation.')
+          return
+        }
+      }
+
       setMessage('Could not save the report to Supabase, so the PDF was not generated.')
     }
   }
