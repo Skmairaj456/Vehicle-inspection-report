@@ -115,18 +115,16 @@ export const createDefaultSections = (): InspectionSectionMap => ({
   others: createDefaultOthers(),
 })
 
-export const createEmptyReport = (existingReports: InspectionReport[] = []): InspectionReport => {
+export const createEmptyReport = (_existingReports: InspectionReport[] = []): InspectionReport => {
   const year = new Date().getFullYear()
   const prefix = `DAD-INS-${year}-`
-  const nextId = existingReports.reduce((max, report) => {
-    const match = report.reportId.match(/DAD-INS-(\d{4})-(\d{4})/)
-    if (!match) return max
-    const current = Number.parseInt(match[2], 10)
-    return Number.isFinite(current) ? Math.max(max, current) : max
-  }, 0)
+  const suffix = [
+    Date.now().toString(36).toUpperCase(),
+    Math.random().toString(36).slice(2, 7).toUpperCase(),
+  ].join('')
 
   const now = new Date().toISOString()
-  const reportId = `${prefix}${String(nextId + 1).padStart(4, '0')}`
+  const reportId = `${prefix}${suffix}`
 
   return {
     id: crypto.randomUUID(),
